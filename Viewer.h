@@ -8,8 +8,7 @@ class Viewer : public QRasterWindow
     Q_OBJECT
 
 public:
-    Viewer(const QString &file);
-    bool isValid() const { return !m_image.isNull(); }
+    Viewer(const QImage &image);
 
 private slots:
     void setAspectRatio();

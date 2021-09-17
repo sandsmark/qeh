@@ -4,20 +4,13 @@
 #include <QScreen>
 #include <QDebug>
 #include <QX11Info>
-#include <QFileInfo>
-#include <QCoreApplication>
 
 #include <xcb/xcb_icccm.h>
 
-Viewer::Viewer(const QString &file) :
-    m_image(file)
+Viewer::Viewer(const QImage &image) :
+    m_image(image)
 
 {
-    if (m_image.isNull()) {
-        qApp->quit();
-        return;
-    }
-
     QSize minSize = m_image.size();
     minSize.scale(100, 100, Qt::KeepAspectRatio);
     setMinimumSize(minSize);
@@ -26,7 +19,6 @@ Viewer::Viewer(const QString &file) :
     maxSize.scale(screen()->availableSize(), Qt::KeepAspectRatioByExpanding);
     setMaximumSize(maxSize);
 
-    setTitle(QFileInfo(file).fileName());
     setFlag(Qt::Dialog);
     updateSize(m_image.size(), true);
 }
