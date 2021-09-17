@@ -5,6 +5,9 @@
 #include <QImageReader>
 #include <QFileInfo>
 #include <QMimeDatabase>
+#include <QAccessible>
+
+void dummyAccessibilityRootHandler(QObject*) {  }
 
 static void printHelp(const char *app)
 {
@@ -24,6 +27,13 @@ static void printHelp(const char *app)
 
 int main(int argc, char *argv[])
 {
+    unsetenv("QT_QPA_PLATFORMTHEME");
+    setenv("QT_XCB_GL_INTEGRATION", "none", 1);
+
+    // Otherwise it tries to contact SPI and stuff
+    // But we don't really have any GUI, so we don't need this
+    QAccessible::installRootObjectHandler(dummyAccessibilityRootHandler);
+
     QGuiApplication a(argc, argv);
     if (argc != 2) {
         printHelp(argv[0]);
