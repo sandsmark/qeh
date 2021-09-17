@@ -3,6 +3,10 @@
 #include <QPainter>
 #include <QScreen>
 #include <QDebug>
+#include <QX11Info>
+#include <QFileInfo>
+
+#include <xcb/xcb_icccm.h>
 
 Viewer::Viewer(const QString &file) : QWidget(nullptr),
     m_image(file)
@@ -11,15 +15,12 @@ Viewer::Viewer(const QString &file) : QWidget(nullptr),
     if (m_image.isNull()) {
         return;
     }
+    setWindowTitle(QFileInfo(file).fileName());
     setWindowFlag(Qt::Dialog);
-    setWindowFlag(Qt::FramelessWindowHint);
+//    setWindowFlag(Qt::FramelessWindowHint);
     setAttribute(Qt::WA_NoBackground);
     setAttribute(Qt::WA_OpaquePaintEvent);
     updateSize(m_image.size(), true);
-}
-
-Viewer::~Viewer()
-{
 }
 
 
@@ -64,8 +65,7 @@ void Viewer::paintEvent(QPaintEvent *)
 
 void Viewer::resizeEvent(QResizeEvent *event)
 {
-    if (event->size().height() == m_scaled.height() || event->size().width() == m_scaled.width() || m_resizing) {
-        m_resizing = false;
+    if (event->size().height() == m_scaled.height() || event->size().width() == m_scaled.width()) {
         QWidget::resizeEvent(event);
         return;
     }
@@ -93,6 +93,23 @@ void Viewer::updateSize(QSize newSize, bool centerOnScreen)
 
     m_scaled = m_image.scaled(newSize);
 
-    m_resizing = true;
     setGeometry(geo);
+}
+
+
+void Viewer::showEvent(QShowEvent *event)
+{
+    if (m_initialized) {
+        QWidget::showEvent(event);
+        return;
+    }
+    m_initialized = true;
+    QWidget::showEvent(event);
+
+    QTimer::singleShot(0, this, [this]() {
+        xcb_size_hints_t hints;
+        memset(&hints, 0, sizeof(hints));
+        xcb_icccm_size_hints_set_aspect(&hints, m_image.width(), m_image.height(), m_image.width(), m_image.height());
+        xcb_icccm_set_wm_normal_hints(QX11Info::connection(), winId(), &hints);
+    });
 }
