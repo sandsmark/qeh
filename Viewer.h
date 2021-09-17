@@ -17,20 +17,12 @@ public:
     void keyPressEvent(QKeyEvent *event) override;
     void paintEvent(QPaintEvent *e) override;
     void resizeEvent(QResizeEvent *event) override;
-//    bool event(QEvent *e) override;
-
-//private slots:
-//    void onResizeTimer();
-//    void onResizeTimer2();
 
 private:
     void updateSize(QSize newSize, bool centerOnScreen = false);
     const QImage m_image;
     bool m_resizing = false;
     QImage m_scaled;
-
-//    QTimer m_resizeTimer;
-//    QTimer m_resizeTimer2;
 };
 
 
