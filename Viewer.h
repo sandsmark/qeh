@@ -20,7 +20,7 @@ protected:
     void moveEvent(QMoveEvent *event) override;
 
 private:
-    void updateSize(QSize newSize, bool centerOnScreen = false);
+    void updateSize(QSize newSize, bool initial = false);
     void ensureVisible();
     const QImage m_image;
     QImage m_scaled;

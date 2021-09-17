@@ -16,7 +16,7 @@ Viewer::Viewer(const QImage &image) :
     setMinimumSize(minSize);
 
     QSize maxSize = m_image.size();
-    maxSize.scale(screen()->availableSize(), Qt::KeepAspectRatioByExpanding);
+    maxSize.scale(screen()->availableSize() * 2, Qt::KeepAspectRatioByExpanding);
     setMaximumSize(maxSize);
 
     setFlag(Qt::Dialog);
@@ -24,10 +24,13 @@ Viewer::Viewer(const QImage &image) :
 }
 
 
-void Viewer::updateSize(QSize newSize, bool centerOnScreen)
+void Viewer::updateSize(QSize newSize, bool initial)
 {
-    const QSize maxSize(screen()->availableSize());
-    if (newSize.width() > maxSize.width()|| newSize.height() >= maxSize.height()) {
+    QSize maxSize(screen()->availableSize());
+    if (!initial) {
+        maxSize *= 2; // let the user go wild
+    }
+    if (newSize.width() > maxSize.width() || newSize.height() >= maxSize.height()) {
         newSize.scale(maxSize.width(), maxSize.height(), Qt::KeepAspectRatio);
     }
     if (newSize.width() < minimumWidth()) {
@@ -42,7 +45,7 @@ void Viewer::updateSize(QSize newSize, bool centerOnScreen)
     QRect geo = geometry();
     QPoint center = geo.center();
     geo.setSize(newSize);
-    if (centerOnScreen) {
+    if (initial) {
         geo.moveCenter(screen()->geometry().center());
     } else {
         geo.moveCenter(center);
@@ -100,6 +103,16 @@ void Viewer::paintEvent(QPaintEvent *event)
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
     switch(event->key()) {
+    case Qt::Key_1: updateSize(m_image.size()  * 0.1); return;
+    case Qt::Key_2: updateSize(m_image.size()  * 0.2); return;
+    case Qt::Key_3: updateSize(m_image.size()  * 0.3); return;
+    case Qt::Key_4: updateSize(m_image.size()  * 0.4); return;
+    case Qt::Key_5: updateSize(m_image.size()  * 0.5); return;
+    case Qt::Key_6: updateSize(m_image.size()  * 0.6); return;
+    case Qt::Key_7: updateSize(m_image.size()  * 0.7); return;
+    case Qt::Key_8: updateSize(m_image.size()  * 0.8); return;
+    case Qt::Key_9: updateSize(m_image.size()  * 0.9); return;
+    case Qt::Key_0: updateSize(m_image.size()); return;
     case Qt::Key_Equal:
     case Qt::Key_Plus:
     case Qt::Key_Up:
@@ -109,10 +122,38 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Down:
         updateSize(m_scaled.size()  / 1.1);
         return;
+    case Qt::Key_F: {
+        QSize newSize = m_image.size();
+        newSize.scale(screen()->availableSize(), Qt::KeepAspectRatio);
+        updateSize(newSize);
+        return;
+    }
     case Qt::Key_Q:
     case Qt::Key_Escape:
         close();
         return;
+    case Qt::Key_Right: {
+        QRect geom = geometry();
+        const QRect screenGeo = screen()->availableGeometry();
+        if (geom.left() == screenGeo.left()) {
+            geom.moveCenter(screenGeo.center());
+        } else {
+            geom.moveRight(screenGeo.right());
+        }
+        setGeometry(geom);
+        break;
+    }
+    case Qt::Key_Left: {
+        QRect geom = geometry();
+        const QRect screenGeo = screen()->availableGeometry();
+        if (geom.right() == screenGeo.right()) {
+            geom.moveCenter(screenGeo.center());
+        } else {
+            geom.moveLeft(screenGeo.left());
+        }
+        setGeometry(geom);
+        break;
+    }
     default:
         break;
     }
@@ -121,7 +162,11 @@ void Viewer::keyPressEvent(QKeyEvent *event)
 
 void Viewer::resizeEvent(QResizeEvent *event)
 {
-    m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (m_image.width() / width() > 2) {
+        m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::FastTransformation);
+    } else {
+        m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
     QMetaObject::invokeMethod(this, &Viewer::setAspectRatio, Qt::QueuedConnection);
     QRasterWindow::resizeEvent(event);
     QMetaObject::invokeMethod(this, &Viewer::ensureVisible, Qt::QueuedConnection);
