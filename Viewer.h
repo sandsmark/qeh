@@ -1,9 +1,9 @@
 #pragma once
 
-#include <QWindow>
+#include <QRasterWindow>
 #include <QImage>
 
-class Viewer : public QWindow
+class Viewer : public QRasterWindow
 {
     Q_OBJECT
 
@@ -11,18 +11,20 @@ public:
     Viewer(const QString &file);
     bool isValid() const { return !m_image.isNull(); }
 
-public:
-    bool event(QEvent *event) override;
-
 private slots:
     void setAspectRatio();
-    void render(const QRegion &region);
+
+protected:
+    void paintEvent(QPaintEvent*) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private:
     void updateSize(QSize newSize, bool centerOnScreen = false);
+    void ensureVisible();
     const QImage m_image;
     QImage m_scaled;
-    QBackingStore *m_backingStore;
 };
 
 
