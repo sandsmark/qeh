@@ -17,10 +17,9 @@ Viewer::Viewer(const QString &file) : QWidget(nullptr),
     }
     setWindowTitle(QFileInfo(file).fileName());
     setWindowFlag(Qt::Dialog);
-//    setWindowFlag(Qt::FramelessWindowHint);
-    setAttribute(Qt::WA_NoBackground);
     setAttribute(Qt::WA_OpaquePaintEvent);
     updateSize(m_image.size(), true);
+    m_aspectRatioTimer.setInterval(0);
 }
 
 
@@ -71,6 +70,9 @@ void Viewer::resizeEvent(QResizeEvent *event)
     }
 
     m_scaled = m_image.scaled(event->size(), Qt::KeepAspectRatio);
+
+    // Qt helpfully resets this when resizing, and has no option for us to set it
+    QMetaObject::invokeMethod(this, &Viewer::setAspectRatio, Qt::QueuedConnection);
 }
 
 void Viewer::updateSize(QSize newSize, bool centerOnScreen)
@@ -105,11 +107,12 @@ void Viewer::showEvent(QShowEvent *event)
     }
     m_initialized = true;
     QWidget::showEvent(event);
+}
 
-    QTimer::singleShot(0, this, [this]() {
-        xcb_size_hints_t hints;
-        memset(&hints, 0, sizeof(hints));
-        xcb_icccm_size_hints_set_aspect(&hints, m_image.width(), m_image.height(), m_image.width(), m_image.height());
-        xcb_icccm_set_wm_normal_hints(QX11Info::connection(), winId(), &hints);
-    });
+void Viewer::setAspectRatio()
+{
+    xcb_size_hints_t hints;
+    memset(&hints, 0, sizeof(hints));
+    xcb_icccm_size_hints_set_aspect(&hints, m_image.width(), m_image.height(), m_image.width(), m_image.height());
+    xcb_icccm_set_wm_normal_hints(QX11Info::connection(), winId(), &hints);
 }

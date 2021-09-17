@@ -18,11 +18,15 @@ public:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
+private slots:
+    void setAspectRatio();
+
 private:
     void updateSize(QSize newSize, bool centerOnScreen = false);
     const QImage m_image;
     QImage m_scaled;
     bool m_initialized = false;
+    QTimer m_aspectRatioTimer;
 };
 
 
