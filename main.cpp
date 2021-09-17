@@ -1,11 +1,11 @@
 #include "Viewer.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QDebug>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QGuiApplication a(argc, argv);
     if (argc < 2) {
         qWarning() << "Pass an image";
         return 1;
