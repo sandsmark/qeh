@@ -13,19 +13,24 @@ public:
     const bool isValid() { return !m_image.isNull(); }
     ~Viewer();
 
-protected:
+public:
     void keyPressEvent(QKeyEvent *event) override;
     void paintEvent(QPaintEvent *e) override;
-//    void resizeEvent(QResizeEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+//    bool event(QEvent *e) override;
 
-private slots:
-    void updateGeometry();
+//private slots:
+//    void onResizeTimer();
+//    void onResizeTimer2();
 
 private:
-    void setSize(QSize newSize, bool centerOnScreen = false);
+    void updateSize(QSize newSize, bool centerOnScreen = false);
     const QImage m_image;
+    bool m_resizing = false;
     QImage m_scaled;
-    bool m_updating = false;
-    QTimer m_geometryTimer;
-    QRect m_geo;
+
+//    QTimer m_resizeTimer;
+//    QTimer m_resizeTimer2;
 };
+
+
