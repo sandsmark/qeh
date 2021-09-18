@@ -178,3 +178,16 @@ void Viewer::moveEvent(QMoveEvent *event)
     QRasterWindow::moveEvent(event);
     QMetaObject::invokeMethod(this, &Viewer::ensureVisible, Qt::QueuedConnection);
 }
+
+bool Viewer::event(QEvent *ev)
+{
+    switch(ev->type()) {
+    case QEvent::FocusIn:
+    case QEvent::FocusOut:
+        // Avoid QWindow connecting to dbus
+        ev->accept();
+        return true;
+    default:
+        return QRasterWindow::event(ev);
+    }
+}
