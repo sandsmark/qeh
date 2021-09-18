@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
 
     Viewer w(argv[1]);
     if (!w.isValid()) {
+        printHelp(argv[0]);
         return 1;
     }
     w.show();
