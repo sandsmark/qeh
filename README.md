@@ -24,3 +24,17 @@ Keyboard shortcuts
  - F: Maximize
  - 1-0: Zooms from 10% to 100% respectively.
 
+
+Plugins
+-------
+
+Non-exhaustive list, not everything might be packed for your distro:
+
+ - [Qt Image Formats](https://doc.qt.io/qt-5/qtimageformats-index.html): WebP, JPEG 2000, Targa, TIFF, Wireless Bitmap, MNG, DirectX textures, Apple icons
+ - [KImageFormats](https://github.com/KDE/kimageformats): Windows cursors, AVIF, EPS, OpenEXR, Radiance HDR, HEIF, Krita, OpenRaster, Gimp, pic, Photoshop, SunOS raster, SGI RGB, Targa
+ - [QtRaw](https://github.com/sandsmark/qtraw): RAW images, various formats (via libraw).
+ - [QVTF](https://github.com/HurricanePootis/qvtf): Valve Texture Files
+ - [qt-jpegxl-image-plugin](https://github.com/novomesk/qt-jpegxl-image-plugin/): JPEG-XL images
+ - [QtApng](https://github.com/Skycoder42/QtApng): Animated PNG
+ - [QtPBFImagePlugin](https://github.com/tumic0/QtPBFImagePlugin): Mapbox vector tiles
+ - [extra-imageformats-qt](https://github.com/sandsmark/extra-imageformats-qt): BPG, PGF and FUIF
