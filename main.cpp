@@ -52,24 +52,12 @@ int main(int argc, char *argv[])
             return 0;
         }
     }
-    QImageReader reader(QString::fromLocal8Bit(argv[1]));
-    const QString filename = QFileInfo(reader.fileName()).fileName();
+    a.setApplicationDisplayName(QFileInfo(argv[1]).fileName());
 
-    if (!reader.canRead()) {
-        qWarning() << "Can't read image from" << filename << ":" << reader.errorString();
+    Viewer w(argv[1]);
+    if (!w.isValid()) {
         return 1;
     }
-    const QImage image = reader.read();
-    if (image.isNull()) {
-        qWarning() << "Invalid image read from" << filename;
-        if (reader.error() != QImageReader::UnknownError) {
-            qWarning() << reader.errorString();
-        }
-        return 1;
-    }
-    a.setApplicationDisplayName(filename);
-
-    Viewer w(image);
     w.show();
     return a.exec();
 }

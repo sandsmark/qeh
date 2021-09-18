@@ -2,13 +2,21 @@
 
 #include <QRasterWindow>
 #include <QImage>
+#include <QScopedPointer>
+#include <QMovie>
+
+class QMovie;
 
 class Viewer : public QRasterWindow
 {
     Q_OBJECT
 
 public:
-    Viewer(const QImage &image);
+    Viewer(const QString &file);
+
+    bool isValid() {
+        return (m_movie && m_movie->isValid()) || !m_image.isNull();
+    }
 
 private slots:
     void setAspectRatio();
@@ -23,8 +31,10 @@ protected:
 private:
     void updateSize(QSize newSize, bool initial = false);
     void ensureVisible();
-    const QImage m_image;
+    QImage m_image;
     QImage m_scaled;
+    QSize m_imageSize;
+    QScopedPointer<QMovie> m_movie;
 };
 
 
