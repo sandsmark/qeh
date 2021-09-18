@@ -27,8 +27,15 @@ static void printHelp(const char *app)
 
 int main(int argc, char *argv[])
 {
-    unsetenv("QT_QPA_PLATFORMTHEME");
-    setenv("QT_XCB_GL_INTEGRATION", "none", 1);
+    qunsetenv("QT_QPA_PLATFORMTHEME");
+    qputenv("QT_XCB_GL_INTEGRATION", "none");
+    qputenv("QT_QPA_PLATFORMTHEME", "generic");
+    qputenv("QT_XCB_NO_XI2_MOUSE", "1");
+
+    // Stole this from the qdbus unit tests, should hopefully kill all attempts
+    // at using dbus and slowing is down.
+    qputenv("DBUS_SESSION_BUS_ADDRESS", "unix:abstract=/tmp/does_not_exist");
+    qputenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:abstract=/tmp/does_not_exist");
 
     // Otherwise it tries to contact SPI and stuff
     // But we don't really have any GUI, so we don't need this

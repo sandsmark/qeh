@@ -3,6 +3,12 @@ qeh
 
 Like feh, but better (faster, more image formats, simpler, and better UI).
 
+Supports everything from Photoshop and Gimp images to SunOS raster images
+and DirectX textures, assuming you have the right plugins installed
+(kimageformats).
+
+Uses optimized SSE4.1 code and threadpools for high quality scaling and is generally good (thanks to Qt).
+
 Keyboard shortcuts
 ------------------
 
