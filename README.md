@@ -38,3 +38,6 @@ Non-exhaustive list, not everything might be packed for your distro:
  - [QtApng](https://github.com/Skycoder42/QtApng): Animated PNG
  - [QtPBFImagePlugin](https://github.com/tumic0/QtPBFImagePlugin): Mapbox vector tiles
  - [extra-imageformats-qt](https://github.com/sandsmark/extra-imageformats-qt): BPG, PGF and FUIF
+
+
+In addition there's the built-in ones (at the moment, might be more whenever you're reading this): BMP, GIF, JPG, JPEG, PNG, PBM, PGM, PPM, XBM, XPM,
