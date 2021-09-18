@@ -1,7 +1,9 @@
 qeh
 ---
 
-Like feh, but better (faster, more image formats, simpler, and better UI).
+Like feh, but better (faster, more image formats, simpler, more lightweight, animation support, and better UI).
+
+![screenshot](/screenshot.png)
 
 Supports everything from Photoshop and Gimp images to SunOS raster images
 and DirectX textures, assuming you have the right plugins installed
