@@ -19,7 +19,9 @@ Viewer::Viewer(const QString &file)
     if (reader.supportsAnimation()) {
         m_movie.reset(new QMovie(file));
         m_movie->setScaledSize(m_imageSize);
+        m_movie->setCacheMode(QMovie::CacheAll);
         connect(m_movie.get(), &QMovie::frameChanged, this, [this]() { update(); }); // QRasterWindow has broken support for QEvent::UpdateRequest...
+        connect(m_movie.get(), &QMovie::finished, m_movie.get(), &QMovie::start);
         QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
         m_image = reader.read();
