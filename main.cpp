@@ -6,12 +6,23 @@
 #include <QFileInfo>
 #include <QMimeDatabase>
 #include <QAccessible>
+#include <QTimer>
+
+//#define DEBUG_LAUNCH_TIME
+
+#ifdef DEBUG_LAUNCH_TIME
+#include <QTimer>
+#include <QElapsedTimer>
+#endif
 
 void dummyAccessibilityRootHandler(QObject*) {  }
 
-static void printHelp(const char *app)
+static void printHelp(const char *app, bool verbose)
 {
     qDebug() << "Usage:" << app << "(filename)";
+    if (!verbose) {
+        return;
+    }
     qDebug().noquote() << "Supported formats:";
     QMimeDatabase db;
     for (const QByteArray &format : QImageReader::supportedMimeTypes()) {
@@ -20,7 +31,7 @@ static void printHelp(const char *app)
             qDebug().noquote() << " - " << QImageReader::imageFormatsForMimeType(format).join(", ");
             continue;
         }
-        qDebug().noquote() << " - " << mime.filterString();
+        qDebug().noquote() << " - " << mime.filterString() << mime.name();
     }
 }
 
@@ -40,25 +51,38 @@ int main(int argc, char *argv[])
     // Otherwise it tries to contact SPI and stuff
     // But we don't really have any GUI, so we don't need this
     QAccessible::installRootObjectHandler(dummyAccessibilityRootHandler);
+#ifdef DEBUG_LAUNCH_TIME
+    QElapsedTimer t; t.start();
+#endif
 
     QGuiApplication a(argc, argv);
     if (argc != 2) {
-        printHelp(argv[0]);
+        printHelp(argv[0], false);
         return 1;
     }
     for (const QString &arg : a.arguments()) {
         if (arg == "-h" || arg == "-v" || arg == "--help" || arg == "--version") {
-            printHelp(argv[0]);
-            return 0;
+            printHelp(argv[0], true);
+            return 1;
         }
     }
-    a.setApplicationDisplayName(QFileInfo(argv[1]).fileName());
+
+    QFileInfo info(argv[1]);
+
+    a.setApplicationDisplayName(info.fileName());
 
     Viewer w(argv[1]);
     if (!w.isValid()) {
-        printHelp(argv[0]);
+        printHelp(argv[0], w.error() == QImageReader::UnsupportedFormatError);
         return 1;
     }
     w.show();
+#ifdef DEBUG_LAUNCH_TIME
+    QTimer::singleShot(0, &a, &QGuiApplication::quit);
+    int ret = a.exec();
+    qDebug() << "Startup done in" << t.elapsed() << "ms";
+    return ret;
+#else
     return a.exec();
+#endif
 }

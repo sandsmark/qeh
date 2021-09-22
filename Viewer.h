@@ -17,6 +17,7 @@ public:
     bool isValid() {
         return (m_movie && m_movie->isValid()) || !m_image.isNull();
     }
+    QImageReader::ImageReaderError error() const { return m_error; }
 
 private slots:
     void setAspectRatio();
@@ -35,6 +36,7 @@ private:
     QImage m_scaled;
     QSize m_imageSize;
     QScopedPointer<QMovie> m_movie;
+    QImageReader::ImageReaderError m_error = QImageReader::UnknownError;
 };
 
 

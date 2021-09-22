@@ -6,16 +6,27 @@
 #include <QX11Info>
 #include <QImageReader>
 
+#ifdef DEBUG_LOAD_TIME
+#include <QElapsedTimer>
+#endif//DEBUG_LOAD_TIME
+
 #include <xcb/xcb_icccm.h>
 
 Viewer::Viewer(const QString &file)
 {
+#ifdef DEBUG_LOAD_TIME
+    QElapsedTimer t; t.start();
+#endif
+
     QImageReader reader(file);
+    reader.setQuality(0);
     if (!reader.canRead()) {
-        qWarning() << "Can't read image from" << file << ":" << reader.errorString();
+        m_error = reader.error();
+        qWarning().noquote() << "Can't read image from" << file << ":" << reader.errorString();
         return;
     }
     m_imageSize = reader.size();
+    qDebug() << m_imageSize;
     if (reader.supportsAnimation()) {
         m_movie.reset(new QMovie(file));
         m_movie->setScaledSize(m_imageSize);
@@ -26,6 +37,9 @@ Viewer::Viewer(const QString &file)
     } else {
         m_image = reader.read();
     }
+#ifdef DEBUG_LOAD_TIME
+    qDebug() << "Image loaded in" << t.elapsed() << "ms";
+#endif//DEBUG_LOAD_TIME
     QSize minSize = m_imageSize;
     minSize.scale(100, 100, Qt::KeepAspectRatio);
     setMinimumSize(minSize);
