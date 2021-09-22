@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QX11Info>
 #include <QImageReader>
+#include <QGuiApplication>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -279,6 +280,27 @@ void Viewer::moveEvent(QMoveEvent *event)
 {
     QRasterWindow::moveEvent(event);
     QMetaObject::invokeMethod(this, &Viewer::ensureVisible, Qt::QueuedConnection);
+}
+
+void Viewer::mousePressEvent(QMouseEvent *ev)
+{
+    m_lastMousePos = ev->globalPos();
+    QGuiApplication::setOverrideCursor(QCursor(Qt::ClosedHandCursor));
+}
+
+void Viewer::mouseReleaseEvent(QMouseEvent *)
+{
+    QGuiApplication::restoreOverrideCursor();
+}
+
+void Viewer::mouseMoveEvent(QMouseEvent *ev)
+{
+    if (!ev->buttons()) {
+        return;
+    }
+    const QPoint delta = ev->globalPos() - m_lastMousePos;
+    setPosition(position() + delta);
+    m_lastMousePos = ev->globalPos();
 }
 
 bool Viewer::event(QEvent *ev)

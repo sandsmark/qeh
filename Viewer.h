@@ -27,6 +27,9 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
+    void mousePressEvent(QMouseEvent *evt) override;
+    void mouseReleaseEvent(QMouseEvent *evt) override;
+    void mouseMoveEvent(QMouseEvent *evt) override;
     bool event(QEvent *event) override;
 
 private:
@@ -37,6 +40,8 @@ private:
     QSize m_imageSize;
     QScopedPointer<QMovie> m_movie;
     QImageReader::ImageReaderError m_error = QImageReader::UnknownError;
+
+    QPoint m_lastMousePos;
 };
 
 
