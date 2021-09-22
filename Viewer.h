@@ -3,6 +3,7 @@
 #include <QRasterWindow>
 #include <QImage>
 #include <QScopedPointer>
+#include <QElapsedTimer>
 #include <QMovie>
 
 class QMovie;
@@ -21,6 +22,8 @@ public:
 
 private slots:
     void setAspectRatio();
+    void resetMovie(const QString &filename);
+    void onMovieFinished();
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -38,10 +41,15 @@ private:
     QImage m_image;
     QImage m_scaled;
     QSize m_imageSize;
+    QSize m_scaledSize;
     QScopedPointer<QMovie> m_movie;
     QImageReader::ImageReaderError m_error = QImageReader::UnknownError;
 
+    bool m_failed = false;
+
     QPoint m_lastMousePos;
+    bool m_brokenFormat = false;
+    QElapsedTimer m_timer;
 };
 
 

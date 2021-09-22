@@ -20,23 +20,45 @@ Viewer::Viewer(const QString &file)
 #endif
 
     QImageReader reader(file);
-    reader.setQuality(0);
     if (!reader.canRead()) {
         m_error = reader.error();
         qWarning().noquote() << "Can't read image from" << file << ":" << reader.errorString();
         return;
     }
     m_imageSize = reader.size();
+    qRegisterMetaType<QImageReader::ImageReaderError>("QImageReader::ImageReaderError");
+
     if (reader.supportsAnimation()) {
-        m_movie.reset(new QMovie(file));
-        m_movie->setScaledSize(m_imageSize);
-        m_movie->setCacheMode(QMovie::CacheAll);
-        connect(m_movie.get(), &QMovie::frameChanged, this, [this]() { update(); }); // QRasterWindow has broken support for QEvent::UpdateRequest...
-        connect(m_movie.get(), &QMovie::finished, m_movie.get(), &QMovie::start);
+        static const QSet<QByteArray> brokenFormats = {
+            "mng"
+        };
+
+        resetMovie(file);
+        m_brokenFormat = brokenFormats.contains(m_movie->format());
+        if (m_brokenFormat) {
+            qWarning() << m_movie->format() << "has issues, playback might get janky";
+        }
+
+
+        if (!m_imageSize.isValid()) {
+            m_movie->start();
+            m_imageSize = m_movie->currentImage().size();
+            if (!m_imageSize.isValid()) {
+                m_imageSize = QSize(10, 10);
+            }
+        }
+        if (m_imageSize.isValid()) {
+            m_movie->setScaledSize(m_imageSize);
+        } else {
+            m_imageSize = QSize(10, 10);
+            qWarning() << "Failed to get proper size";
+        }
+
         QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
         m_image = reader.read();
     }
+    m_scaledSize = m_imageSize;
 #ifdef DEBUG_LOAD_TIME
     qDebug() << "Image loaded in" << t.elapsed() << "ms";
 #endif//DEBUG_LOAD_TIME
@@ -52,6 +74,48 @@ Viewer::Viewer(const QString &file)
     updateSize(m_imageSize, true);
 }
 
+void Viewer::resetMovie(const QString &filename)
+{
+    m_movie.reset(new QMovie(filename));
+
+    m_movie->setCacheMode(QMovie::CacheAll);
+
+    if (m_imageSize.isValid()) {
+        m_movie->setScaledSize(m_imageSize);
+    }
+
+    connect(m_movie.get(), &QMovie::error, this, [this]() { qWarning() << "ERROR" << m_movie->lastErrorString(); });
+
+    connect(m_movie.get(), &QMovie::frameChanged, this, [this](int frameNum) {
+        update();
+
+        if (!m_brokenFormat) {
+            return;
+        }
+        if (m_movie->frameCount() > 0 && frameNum >= m_movie->frameCount() - 1) {
+            QMetaObject::invokeMethod(this, &Viewer::onMovieFinished, Qt::QueuedConnection);
+            return;
+        }
+        if (frameNum > 0) {
+            m_failed = false;
+        }
+    });
+
+    connect(m_movie.get(), &QMovie::finished, this, &Viewer::onMovieFinished);
+}
+
+void Viewer::onMovieFinished()
+{
+    if (m_failed) {
+        qWarning() << "Finished but failed, not reseting";
+        return;
+    }
+    if (m_brokenFormat) {
+        m_failed = true;
+        resetMovie(m_movie->fileName());
+    }
+    QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
+}
 
 void Viewer::updateSize(QSize newSize, bool initial)
 {
@@ -116,13 +180,13 @@ void Viewer::paintEvent(QPaintEvent *event)
     QRect rect(QPoint(0, 0), size());
     QRect imageRect;
     if (m_movie) {
-        imageRect = QRect(QPoint(0, 0), m_movie->scaledSize());
+        imageRect = QRect(QPoint(0, 0), m_scaledSize);
         imageRect.moveCenter(rect.center());
-        if (m_movie->state() == QMovie::Running) {
-            p.drawImage(imageRect.topLeft(), m_movie->currentImage());
-        } else {
-            const QImage image = m_movie->currentImage().scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        if (m_movie->state() != QMovie::Running || m_brokenFormat) {
+            const QImage image = m_movie->currentImage().scaled(m_scaledSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             p.drawImage(imageRect.topLeft(), image);
+        } else {
+            p.drawImage(imageRect.topLeft(), m_movie->currentImage());
         }
     } else {
         imageRect = m_scaled.rect();
@@ -142,7 +206,6 @@ void Viewer::paintEvent(QPaintEvent *event)
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
     QSize fullSize = m_imageSize.scaled(screen()->availableSize(), Qt::KeepAspectRatio);
-    const QSize currentSize = m_movie ? m_movie->scaledSize() : m_scaled.size();
     const QSize screenSize = screen()->availableSize();
     switch(event->key()) {
     case Qt::Key_1: updateSize(fullSize  * 0.1); return;
@@ -156,10 +219,10 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     case Qt::Key_9: updateSize(fullSize  * 0.9); return;
     case Qt::Key_0: updateSize(m_imageSize); return;
     case Qt::Key_Backspace:
-        if (!m_movie) {
-            return;
+        if (m_movie) {
+            m_movie->setSpeed(100);
         }
-        m_movie->setSpeed(100);
+        updateSize(m_imageSize);
         return;
     case Qt::Key_Space:
         if (!m_movie) {
@@ -208,17 +271,17 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Equal:
     case Qt::Key_Plus:
     case Qt::Key_Up:
-        updateSize(currentSize * 1.1);
+        updateSize(m_scaledSize * 1.1);
         return;
     case Qt::Key_PageUp:
-        updateSize(currentSize * 2);
+        updateSize(m_scaledSize * 2);
         return;
     case Qt::Key_Minus:
     case Qt::Key_Down:
-        updateSize(currentSize / 1.1);
+        updateSize(m_scaledSize / 1.1);
         return;
     case Qt::Key_PageDown:
-        updateSize(currentSize / 2);
+        updateSize(m_scaledSize / 2);
         return;
     case Qt::Key_F: {
         if (width() >= screenSize.width() || height() >= screenSize.height()) {
@@ -262,10 +325,11 @@ void Viewer::keyPressEvent(QKeyEvent *event)
 
 void Viewer::resizeEvent(QResizeEvent *event)
 {
+    m_scaledSize = m_imageSize.scaled(size(), Qt::KeepAspectRatio);
     if (m_movie) {
-        m_movie->setCacheMode(QMovie::CacheNone);
-        m_movie->setScaledSize(m_imageSize.scaled(size(), Qt::KeepAspectRatio));
-        m_movie->setCacheMode(QMovie::CacheAll);
+        if (!m_brokenFormat) {
+            m_movie->setScaledSize(m_scaledSize);
+        }
     } else {
         const Qt::TransformationMode mode = Qt::SmoothTransformation;
         m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
