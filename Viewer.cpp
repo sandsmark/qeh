@@ -26,7 +26,6 @@ Viewer::Viewer(const QString &file)
         return;
     }
     m_imageSize = reader.size();
-    qDebug() << m_imageSize;
     if (reader.supportsAnimation()) {
         m_movie.reset(new QMovie(file));
         m_movie->setScaledSize(m_imageSize);
@@ -72,7 +71,7 @@ void Viewer::updateSize(QSize newSize, bool initial)
         return;
     }
     QRect geo = geometry();
-    QPoint center = geo.center();
+    const QPoint center = geo.center();
     geo.setSize(newSize);
     if (initial) {
         geo.moveCenter(screen()->geometry().center());
@@ -118,7 +117,12 @@ void Viewer::paintEvent(QPaintEvent *event)
     if (m_movie) {
         imageRect = QRect(QPoint(0, 0), m_movie->scaledSize());
         imageRect.moveCenter(rect.center());
-        p.drawImage(imageRect.topLeft(), m_movie->currentImage());
+        if (m_movie->state() == QMovie::Running) {
+            p.drawImage(imageRect.topLeft(), m_movie->currentImage());
+        } else {
+            const QImage image = m_movie->currentImage().scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            p.drawImage(imageRect.topLeft(), image);
+        }
     } else {
         imageRect = m_scaled.rect();
         imageRect.moveCenter(rect.center());
@@ -132,43 +136,95 @@ void Viewer::paintEvent(QPaintEvent *event)
     for (const QRect &r : background) {
         p.fillRect(r, Qt::black);
     }
-
 }
 
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
+    QSize fullSize = m_imageSize.scaled(screen()->availableSize(), Qt::KeepAspectRatio);
+    const QSize currentSize = m_movie ? m_movie->scaledSize() : m_scaled.size();
+    const QSize screenSize = screen()->availableSize();
     switch(event->key()) {
-    case Qt::Key_1: updateSize(m_imageSize  * 0.1); return;
-    case Qt::Key_2: updateSize(m_imageSize  * 0.2); return;
-    case Qt::Key_3: updateSize(m_imageSize  * 0.3); return;
-    case Qt::Key_4: updateSize(m_imageSize  * 0.4); return;
-    case Qt::Key_5: updateSize(m_imageSize  * 0.5); return;
-    case Qt::Key_6: updateSize(m_imageSize  * 0.6); return;
-    case Qt::Key_7: updateSize(m_imageSize  * 0.7); return;
-    case Qt::Key_8: updateSize(m_imageSize  * 0.8); return;
-    case Qt::Key_9: updateSize(m_imageSize  * 0.9); return;
+    case Qt::Key_1: updateSize(fullSize  * 0.1); return;
+    case Qt::Key_2: updateSize(fullSize  * 0.2); return;
+    case Qt::Key_3: updateSize(fullSize  * 0.3); return;
+    case Qt::Key_4: updateSize(fullSize  * 0.4); return;
+    case Qt::Key_5: updateSize(fullSize  * 0.5); return;
+    case Qt::Key_6: updateSize(fullSize  * 0.6); return;
+    case Qt::Key_7: updateSize(fullSize  * 0.7); return;
+    case Qt::Key_8: updateSize(fullSize  * 0.8); return;
+    case Qt::Key_9: updateSize(fullSize  * 0.9); return;
     case Qt::Key_0: updateSize(m_imageSize); return;
+    case Qt::Key_Backspace:
+        if (!m_movie) {
+            return;
+        }
+        m_movie->setSpeed(100);
+        return;
+    case Qt::Key_Space:
+        if (!m_movie) {
+            return;
+        }
+        if (m_movie->state() == QMovie::Running) {
+            m_movie->setPaused(true);
+        } else {
+            m_movie->setPaused(false);
+        }
+        return;
+    case Qt::Key_W:
+        if (!m_movie) {
+            return;
+        }
+        m_movie->setSpeed(qMin<int>(m_movie->speed() * 1.1, 1000));
+        return;
+    case Qt::Key_S:
+        if (!m_movie) {
+            return;
+        }
+        m_movie->setSpeed(qMax<int>(m_movie->speed() / 1.1, 10));
+        return;
+    case Qt::Key_A:
+        if (!m_movie) {
+            return;
+        }
+        m_movie->setPaused(true);
+        if (m_movie->currentFrameNumber() == 0) {
+            m_movie->jumpToFrame(m_movie->frameCount() - 1);
+        } else {
+            m_movie->jumpToFrame(m_movie->currentFrameNumber() - 1);
+        }
+        return;
+    case Qt::Key_D:
+        if (!m_movie) {
+            return;
+        }
+        m_movie->setPaused(true);
+        if (m_movie->currentFrameNumber() >= m_movie->frameCount()) {
+            m_movie->jumpToFrame(0);
+        } else {
+            m_movie->jumpToFrame(m_movie->currentFrameNumber() + 1);
+        }
+        return;
     case Qt::Key_Equal:
     case Qt::Key_Plus:
     case Qt::Key_Up:
-        if (m_movie) {
-            updateSize(m_movie->scaledSize() * 1.1);
-        } else {
-            updateSize(m_scaled.size() * 1.1);
-        }
+        updateSize(currentSize * 1.1);
+        return;
+    case Qt::Key_PageUp:
+        updateSize(currentSize * 2);
         return;
     case Qt::Key_Minus:
     case Qt::Key_Down:
-        if (m_movie) {
-            updateSize(m_movie->scaledSize() / 1.1);
-        } else {
-            updateSize(m_scaled.size() / 1.1);
-        }
+        updateSize(currentSize / 1.1);
+        return;
+    case Qt::Key_PageDown:
+        updateSize(currentSize / 2);
         return;
     case Qt::Key_F: {
-        QSize newSize = m_imageSize;
-        newSize.scale(screen()->availableSize(), Qt::KeepAspectRatio);
-        updateSize(newSize);
+        if (width() >= screenSize.width() || height() >= screenSize.height()) {
+            updateSize(m_imageSize);
+        } else {
+            updateSize(fullSize);
+        }
         return;
     }
     case Qt::Key_Q:
@@ -206,16 +262,13 @@ void Viewer::keyPressEvent(QKeyEvent *event)
 void Viewer::resizeEvent(QResizeEvent *event)
 {
     if (m_movie) {
-        m_movie->setScaledSize(m_movie->scaledSize().scaled(size(), Qt::KeepAspectRatio));
+        m_movie->setCacheMode(QMovie::CacheNone);
+        m_movie->setScaledSize(m_imageSize.scaled(size(), Qt::KeepAspectRatio));
+        m_movie->setCacheMode(QMovie::CacheAll);
     } else {
-        const Qt::TransformationMode mode = m_image.width() / width() > 2 ? Qt::FastTransformation : Qt::SmoothTransformation;
-        m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, mode);
+        const Qt::TransformationMode mode = Qt::SmoothTransformation;
+        m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
-    //if (m_image.width() / width() > 2) {
-    //    m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::FastTransformation);
-    //} else {
-    //    m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    //}
     QMetaObject::invokeMethod(this, &Viewer::setAspectRatio, Qt::QueuedConnection);
     QRasterWindow::resizeEvent(event);
     QMetaObject::invokeMethod(this, &Viewer::ensureVisible, Qt::QueuedConnection);
