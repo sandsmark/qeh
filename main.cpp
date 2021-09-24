@@ -20,6 +20,8 @@ void dummyAccessibilityRootHandler(QObject*) {  }
 static void printHelp(const char *app, bool verbose)
 {
     qDebug() << "Usage:" << app << "(filename)";
+    qDebug() << "Filename can be - to read data from stdin instead, for example:";
+    qDebug() << "   base64 -d foo | qeh -";
     if (!verbose) {
         return;
     }
@@ -60,6 +62,7 @@ int main(int argc, char *argv[])
         printHelp(argv[0], false);
         return 1;
     }
+
     for (const QString &arg : a.arguments()) {
         if (arg == "-h" || arg == "-v" || arg == "--help" || arg == "--version") {
             printHelp(argv[0], true);

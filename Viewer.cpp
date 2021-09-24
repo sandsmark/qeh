@@ -6,6 +6,8 @@
 #include <QX11Info>
 #include <QImageReader>
 #include <QGuiApplication>
+#include <QBuffer>
+#include <iostream>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -18,8 +20,21 @@ Viewer::Viewer(const QString &file)
 #ifdef DEBUG_LOAD_TIME
     QElapsedTimer t; t.start();
 #endif
+    QBuffer stdinBuffer;
+    QImageReader reader;
+    if (file == "-") {
+        QByteArray input;
+        std::array<char, 4096> arr;
+        while(!std::cin.eof()) {
+            std::cin.read(arr.data(), arr.size());
+            input.append(arr.data(), std::cin.gcount());
+        }
+        stdinBuffer.setData(input);
+        reader.setDevice(&stdinBuffer);
+    } else {
+        reader.setFileName(file);
+    }
 
-    QImageReader reader(file);
     if (!reader.canRead()) {
         m_error = reader.error();
         qWarning().noquote() << "Can't read image from" << file << ":" << reader.errorString();
