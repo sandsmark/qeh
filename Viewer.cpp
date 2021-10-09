@@ -42,6 +42,15 @@ bool Viewer::load(const QString &filename)
         m_input = new QFile(filename, this);
     }
 
+    {
+        m_background = QImage(20, 20, QImage::Format_RGB32);
+        QPainter pmp(&m_background);
+        pmp.fillRect(0, 0, 10, 10, Qt::lightGray);
+        pmp.fillRect(10, 10, 10, 10, Qt::lightGray);
+        pmp.fillRect(0, 10, 10, 10, Qt::darkGray);
+        pmp.fillRect(10, 0, 10, 10, Qt::darkGray);
+    }
+
     m_input->open(QIODevice::ReadOnly);
     QImageReader reader(m_input);
 
@@ -206,22 +215,27 @@ void Viewer::paintEvent(QPaintEvent *event)
     QPainter p(this);
     p.setClipRegion(event->region());
 
-    QRect rect(QPoint(0, 0), size());
+    const QRect rect(QPoint(0, 0), size());
     QRect imageRect;
+    QImage image;
     if (m_movie) {
         imageRect = QRect(QPoint(0, 0), m_scaledSize);
         imageRect.moveCenter(rect.center());
         if (m_movie->state() != QMovie::Running || m_brokenFormat) {
-            const QImage image = m_movie->currentImage().scaled(m_scaledSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-            p.drawImage(imageRect.topLeft(), image);
+            image = m_movie->currentImage().scaled(m_scaledSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         } else {
-            p.drawImage(imageRect.topLeft(), m_movie->currentImage());
+            image =  m_movie->currentImage();
         }
     } else {
         imageRect = m_scaled.rect();
         imageRect.moveCenter(rect.center());
-        p.drawImage(imageRect.topLeft(), m_scaled);
+
+        image = m_scaled;
     }
+    if (image.hasAlphaChannel()) {
+        p.fillRect(rect, m_background);
+    }
+    p.drawImage(imageRect.topLeft(), image);
 
     // This _should_ always be empty
     QRegion background = rect;
