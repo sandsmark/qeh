@@ -7,7 +7,8 @@
 #include <QImageReader>
 #include <QGuiApplication>
 #include <QBuffer>
-#include <iostream>
+#include <QMetaEnum>
+#include <QColorSpace>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -49,6 +50,10 @@ bool Viewer::load(const QString &filename)
         m_error = reader.error();
         qWarning().noquote() << "Can't read image from" << filename << ":" << reader.errorString();
         return false;
+    }
+    m_format = reader.format();
+    if (!reader.subType().isEmpty()) {
+        m_format += "/" + reader.subType();
     }
     m_imageSize = reader.size();
 
@@ -201,6 +206,12 @@ void Viewer::setAspectRatio()
     xcb_icccm_set_wm_normal_hints(QX11Info::connection(), winId(), &hints);
 }
 
+template <typename ENUM> static const QString enumToString(const ENUM val)
+{
+    const QMetaEnum metaEnum = QMetaEnum::fromType<ENUM>();
+    return metaEnum.valueToKey(static_cast<typename std::underlying_type<ENUM>::type>(val));
+}
+
 void Viewer::paintEvent(QPaintEvent *event)
 {
     QPainter p(this);
@@ -233,6 +244,57 @@ void Viewer::paintEvent(QPaintEvent *event)
     background &= event->region();
     for (const QRect &r : background) {
         p.fillRect(r, Qt::black);
+    }
+    if (m_showInfo) {
+        p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        QString infoText;
+        infoText += enumToString(image.format());
+        infoText += "\nSize: " + QString::asprintf("%dx%d", m_imageSize.width(), m_imageSize.height());
+        infoText += "\nFormat: " + m_format;
+
+        QColorSpace colors = image.colorSpace();
+        if (colors.isValid() || image.colorCount()) {
+            infoText += "\nColors:";
+            if (colors.gamma()) {
+                infoText += "\n  Gamma: " + QString::number(colors.gamma());
+            }
+            if (colors.isValid()) {
+                infoText += "\n  Primaries: " + enumToString(colors.primaries());
+                infoText += "\n  Transfer function: " + enumToString(colors.transferFunction());
+            }
+            if (image.colorCount()) {
+                infoText += "\n  Color count: " + QString::number(image.colorCount());
+            }
+        }
+
+        if (!image.textKeys().isEmpty()) {
+            infoText += "\nMetadata:";
+            for (const QString &key : image.textKeys()) {
+                QString text = image.text(key).simplified();
+                //text.remove("\n");
+                if (text.length() > 25) {
+                    text = text.mid(0, 22) + "...";
+                }
+                infoText += "\n - " + key + ": " + text;
+            }
+        }
+
+        if (m_movie) {
+            infoText += "\nFrame: " + QString::number(m_movie->currentFrameNumber());
+            if (m_movie->frameCount()) {
+                infoText += "/" + QString::number(m_movie->frameCount());
+            }
+            if (m_movie->speed() != 100) {
+                infoText += "\nSpeed: " + QString::number(m_movie->speed()) + "%";
+            }
+            infoText += "\n" + enumToString(m_movie->state());
+        }
+        QRect textRect = p.boundingRect(rect, Qt::AlignLeft | Qt::AlignTop, infoText);
+        textRect += QMargins(2, 2, 2, 2);
+        textRect.moveTo(0, 0);
+        p.fillRect(textRect, QColor(0, 0, 0, 128));
+        p.setPen(Qt::white);
+        p.drawText(textRect, infoText);
     }
 }
 
@@ -350,6 +412,10 @@ void Viewer::keyPressEvent(QKeyEvent *event)
         setGeometry(geom);
         break;
     }
+    case Qt::Key_I:
+        m_showInfo = !m_showInfo;
+        update();
+        break;
     default:
         break;
     }

@@ -56,5 +56,8 @@ private:
     QElapsedTimer m_timer;
 
     QPointer<QIODevice> m_input;
+
+    bool m_showInfo = false;
+    QString m_format;
 };
 

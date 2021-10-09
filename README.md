@@ -22,6 +22,7 @@ Keyboard shortcuts
  - Left: Move to the left side of the screen
  - Escape/Q: Quit
  - F: Maximize
+ - I: Show/hide image info
  - 1-0: Zooms from 10% to 100% respectively.
 
 
