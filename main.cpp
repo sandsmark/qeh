@@ -74,8 +74,8 @@ int main(int argc, char *argv[])
 
     a.setApplicationDisplayName(info.fileName());
 
-    Viewer w(argv[1]);
-    if (!w.isValid()) {
+    Viewer w;
+    if (!w.load(argv[1])) {
         printHelp(argv[0], w.error() == QImageReader::UnsupportedFormatError);
         return 1;
     }

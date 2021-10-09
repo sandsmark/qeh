@@ -15,7 +15,9 @@ class Viewer : public QRasterWindow
     Q_OBJECT
 
 public:
-    Viewer(const QString &filename);
+    Viewer();
+
+    bool load(const QString &filename);
 
     bool isValid() {
         return (m_movie && m_movie->isValid()) || !m_image.isNull();

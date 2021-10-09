@@ -18,7 +18,13 @@ extern "C" {
 #include <unistd.h>
 }
 
-Viewer::Viewer(const QString &filename)
+Viewer::Viewer()
+{
+    qRegisterMetaType<QImageReader::ImageReaderError>("QImageReader::ImageReaderError");
+    setFlag(Qt::Dialog);
+}
+
+bool Viewer::load(const QString &filename)
 {
 #ifdef DEBUG_LOAD_TIME
     QElapsedTimer t; t.start();
@@ -42,10 +48,9 @@ Viewer::Viewer(const QString &filename)
     if (!reader.canRead()) {
         m_error = reader.error();
         qWarning().noquote() << "Can't read image from" << filename << ":" << reader.errorString();
-        return;
+        return false;
     }
     m_imageSize = reader.size();
-    qRegisterMetaType<QImageReader::ImageReaderError>("QImageReader::ImageReaderError");
 
     if (reader.supportsAnimation()) {
         static const QSet<QByteArray> brokenFormats = {
@@ -58,7 +63,6 @@ Viewer::Viewer(const QString &filename)
             qWarning() << m_movie->format() << "has issues, playback might get janky";
         }
 
-
         if (!m_imageSize.isValid()) {
             m_movie->start();
             m_imageSize = m_movie->currentImage().size();
@@ -69,14 +73,16 @@ Viewer::Viewer(const QString &filename)
         if (m_imageSize.isValid()) {
             m_movie->setScaledSize(m_imageSize);
         } else {
-            m_imageSize = QSize(10, 10);
-            qWarning() << "Failed to get proper size";
+            qWarning() << "Failed to get size from animated image";
+            return false;
         }
 
         QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
-        m_image = reader.read();
-        //m_inputDevice->seek(0);
+        if (!reader.read(&m_image)) {
+            qWarning() << "Reader failed to read:" << reader.errorString();
+            return false;
+        }
     }
     m_scaledSize = m_imageSize;
 #ifdef DEBUG_LOAD_TIME
@@ -90,8 +96,9 @@ Viewer::Viewer(const QString &filename)
     maxSize.scale(screen()->availableSize() * 2, Qt::KeepAspectRatioByExpanding);
     setMaximumSize(maxSize);
 
-    setFlag(Qt::Dialog);
     updateSize(m_imageSize, true);
+
+    return true;
 }
 
 void Viewer::resetMovie()
