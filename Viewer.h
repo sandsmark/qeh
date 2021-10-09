@@ -5,15 +5,17 @@
 #include <QScopedPointer>
 #include <QElapsedTimer>
 #include <QMovie>
+#include <QPointer>
 
 class QMovie;
+class QIODevice;
 
 class Viewer : public QRasterWindow
 {
     Q_OBJECT
 
 public:
-    Viewer(const QString &file);
+    Viewer(const QString &filename);
 
     bool isValid() {
         return (m_movie && m_movie->isValid()) || !m_image.isNull();
@@ -22,7 +24,7 @@ public:
 
 private slots:
     void setAspectRatio();
-    void resetMovie(const QString &filename);
+    void resetMovie();
     void onMovieFinished();
 
 protected:
@@ -50,6 +52,7 @@ private:
     QPoint m_lastMousePos;
     bool m_brokenFormat = false;
     QElapsedTimer m_timer;
-};
 
+    QPointer<QIODevice> m_input;
+};
 

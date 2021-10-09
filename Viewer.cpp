@@ -13,31 +13,35 @@
 #include <QElapsedTimer>
 #endif//DEBUG_LOAD_TIME
 
+extern "C" {
 #include <xcb/xcb_icccm.h>
+#include <unistd.h>
+}
 
-Viewer::Viewer(const QString &file)
+Viewer::Viewer(const QString &filename)
 {
 #ifdef DEBUG_LOAD_TIME
     QElapsedTimer t; t.start();
 #endif
-    QBuffer stdinBuffer;
-    QImageReader reader;
-    if (file == "-") {
-        QByteArray input;
-        std::array<char, 4096> arr;
-        while(!std::cin.eof()) {
-            std::cin.read(arr.data(), arr.size());
-            input.append(arr.data(), std::cin.gcount());
-        }
-        stdinBuffer.setData(input);
-        reader.setDevice(&stdinBuffer);
+    if (filename == "-") {
+        // QMovie requires seeking, so we have to read in and store everything
+        // in a qbuffer.
+        QBuffer *buffer = new QBuffer(this);
+        m_input = buffer;
+
+        QFile stdinFile;
+        stdinFile.open(STDIN_FILENO, QIODevice::ReadOnly, QFileDevice::DontCloseHandle);
+        buffer->setData(stdinFile.readAll());
     } else {
-        reader.setFileName(file);
+        m_input = new QFile(filename, this);
     }
+
+    m_input->open(QIODevice::ReadOnly);
+    QImageReader reader(m_input);
 
     if (!reader.canRead()) {
         m_error = reader.error();
-        qWarning().noquote() << "Can't read image from" << file << ":" << reader.errorString();
+        qWarning().noquote() << "Can't read image from" << filename << ":" << reader.errorString();
         return;
     }
     m_imageSize = reader.size();
@@ -48,7 +52,7 @@ Viewer::Viewer(const QString &file)
             "mng"
         };
 
-        resetMovie(file);
+        resetMovie();
         m_brokenFormat = brokenFormats.contains(m_movie->format());
         if (m_brokenFormat) {
             qWarning() << m_movie->format() << "has issues, playback might get janky";
@@ -72,6 +76,7 @@ Viewer::Viewer(const QString &file)
         QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
         m_image = reader.read();
+        //m_inputDevice->seek(0);
     }
     m_scaledSize = m_imageSize;
 #ifdef DEBUG_LOAD_TIME
@@ -89,9 +94,11 @@ Viewer::Viewer(const QString &file)
     updateSize(m_imageSize, true);
 }
 
-void Viewer::resetMovie(const QString &filename)
+void Viewer::resetMovie()
 {
-    m_movie.reset(new QMovie(filename));
+    m_movie.reset();
+    m_input->seek(0);
+    m_movie.reset(new QMovie(m_input));
 
     m_movie->setCacheMode(QMovie::CacheAll);
 
@@ -127,7 +134,7 @@ void Viewer::onMovieFinished()
     }
     if (m_brokenFormat) {
         m_failed = true;
-        resetMovie(m_movie->fileName());
+        resetMovie();
     }
     QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
 }
