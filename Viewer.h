@@ -56,6 +56,5 @@ private:
     QElapsedTimer m_timer;
 
     QPointer<QIODevice> m_input;
-    QImage m_background;
 };
 

@@ -7,6 +7,7 @@
 #include <QMimeDatabase>
 #include <QAccessible>
 #include <QTimer>
+#include <QSurfaceFormat>
 
 //#define DEBUG_LAUNCH_TIME
 
@@ -69,6 +70,12 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    QSurfaceFormat defaultFormat = QSurfaceFormat::defaultFormat();
+    if (!defaultFormat.hasAlpha()) {
+        defaultFormat.setAlphaBufferSize(8);
+    }
+    QSurfaceFormat::setDefaultFormat(defaultFormat);
+
 
     QFileInfo info(argv[1]);
 
