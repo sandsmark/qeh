@@ -43,13 +43,16 @@ bool Viewer::load(const QString &filename)
         m_input = new QFile(filename, this);
     }
 
-    m_input->open(QIODevice::ReadOnly);
+    if (!m_input->open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open" << filename << m_input->errorString();
+        return false;
+    }
+
     QImageReader reader(m_input);
 
     if (!reader.canRead()) {
         m_error = reader.error();
-        qWarning().noquote() << "Can't read image from" << filename << ":" << reader.errorString();
-        return false;
+        qWarning().noquote() << "Error trying to read image from" << filename << ":" << reader.errorString();
     }
     m_format = reader.format();
     if (!reader.subType().isEmpty()) {
@@ -84,10 +87,12 @@ bool Viewer::load(const QString &filename)
 
         QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
-        if (!reader.read(&m_image)) {
-            qWarning() << "Reader failed to read:" << reader.errorString();
+        reader.read(&m_image);
+        if (m_image.isNull()) {
+            qWarning() << "Image reader error:" << reader.errorString();
             return false;
         }
+        m_imageSize = m_image.size();
     }
     m_scaledSize = m_imageSize;
 #ifdef DEBUG_LOAD_TIME
