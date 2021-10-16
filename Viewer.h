@@ -37,6 +37,7 @@ protected:
     void mousePressEvent(QMouseEvent *evt) override;
     void mouseReleaseEvent(QMouseEvent *evt) override;
     void mouseMoveEvent(QMouseEvent *evt) override;
+    void wheelEvent(QWheelEvent *event) override;
     bool event(QEvent *event) override;
 
 private:

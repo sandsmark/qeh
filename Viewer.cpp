@@ -303,6 +303,21 @@ void Viewer::paintEvent(QPaintEvent *event)
     }
 }
 
+
+void Viewer::wheelEvent(QWheelEvent *event)
+{
+    const qreal numDegrees = event->angleDelta().y();
+    if (!numDegrees) {
+        return;
+    }
+    const qreal delta = 1. + qAbs(numDegrees / 800.);
+    if (numDegrees > 0) {
+        updateSize(m_scaledSize * delta);
+    } else {
+        updateSize(m_scaledSize / delta);
+    }
+}
+
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
     QSize fullSize = m_imageSize.scaled(screen()->availableSize(), Qt::KeepAspectRatio);
