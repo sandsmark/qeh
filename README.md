@@ -1,7 +1,7 @@
 qeh
 ---
 
-Like feh, but better, faster, more image formats, simpler, more lightweight,
+Like feh, but better, faster, more image formats, simpler, more lightweight (73kb),
 animation support, and better UI (there is none).
 
 ![screenshot](/screenshot.png)
@@ -24,6 +24,12 @@ Keyboard shortcuts
  - F: Maximize
  - I: Show/hide image info
  - 1-0: Zooms from 10% to 100% respectively.
+ - Space: Pause/continue animation
+ - W: Increase animation speed with 10%
+ - S: Decrease animation speed with 10%
+ - D: Pause and step forward in animation
+ - A: Pause and step backward in animation
+ - Backspace: Reset playback speed, reset zoom
 
 
 Plugins
