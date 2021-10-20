@@ -7,6 +7,8 @@
 #include <QMovie>
 #include <QPointer>
 
+//#define DEBUG_MNG
+
 class QMovie;
 class QIODevice;
 
@@ -55,20 +57,25 @@ private:
     QImage m_scaled;
     QSize m_imageSize;
     QSize m_scaledSize;
-    QScopedPointer<QMovie> m_movie;
     QImageReader::ImageReaderError m_error = QImageReader::UnknownError;
 
-    bool m_failed = false;
+    QScopedPointer<QMovie> m_movie;
+    bool m_decodeSuccess = false;
+    bool m_needReset = false;
 
     QPoint m_lastMousePos;
     bool m_brokenFormat = false;
-    QElapsedTimer m_timer;
 
-    QPointer<QIODevice> m_input;
+    QString m_fileName;
+    QByteArray m_buffer;
 
     bool m_showInfo = false;
     QString m_format;
 
     Effect m_effect = None;
+
+#ifdef DEBUG_MNG
+    QElapsedTimer m_timer;
+#endif
 };
 

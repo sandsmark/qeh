@@ -13,6 +13,7 @@
 #include <QMetaEnum>
 #include <QColorSpace>
 #include <QElapsedTimer>
+#include <QTimer>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -34,25 +35,24 @@ bool Viewer::load(const QString &filename)
 #ifdef DEBUG_LOAD_TIME
     QElapsedTimer t; t.start();
 #endif
+    QIODevice *device = nullptr;
     if (filename == "-") {
-        // QMovie requires seeking, so we have to read in and store everything
-        // in a qbuffer.
-        QBuffer *buffer = new QBuffer(this);
-        m_input = buffer;
-
         QFile stdinFile;
         stdinFile.open(STDIN_FILENO, QIODevice::ReadOnly, QFileDevice::DontCloseHandle);
-        buffer->setData(stdinFile.readAll());
+
+        m_buffer = stdinFile.readAll();
+        device = new QBuffer(&m_buffer, this);
     } else {
-        m_input = new QFile(filename, this);
+        m_fileName = filename;
+        device = new QFile(filename, this);
     }
 
-    if (!m_input->open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open" << filename << m_input->errorString();
+    if (!device->open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open" << filename << device->errorString();
         return false;
     }
 
-    QImageReader reader(m_input);
+    QImageReader reader(device);
 
     if (!reader.canRead()) {
         m_error = reader.error();
@@ -68,6 +68,8 @@ bool Viewer::load(const QString &filename)
         static const QSet<QByteArray> brokenFormats = {
             "mng"
         };
+        reader.setDevice(nullptr);
+        device->deleteLater();
 
         resetMovie();
         m_brokenFormat = brokenFormats.contains(m_movie->format());
@@ -88,10 +90,10 @@ bool Viewer::load(const QString &filename)
             qWarning() << "Failed to get size from animated image";
             return false;
         }
-
-        QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
     } else {
         reader.read(&m_image);
+        reader.setDevice(nullptr);
+        device->deleteLater();
         if (m_image.isNull()) {
             qWarning() << "Image reader error:" << reader.errorString();
             return false;
@@ -117,20 +119,69 @@ bool Viewer::load(const QString &filename)
 
 void Viewer::resetMovie()
 {
-    m_movie.reset();
-    m_input->seek(0);
-    m_movie.reset(new QMovie(m_input));
+    m_decodeSuccess = false;
+    m_needReset = false;
 
-    m_movie->setCacheMode(QMovie::CacheAll);
+    int speed = -1;
+    QSize scaledSize;
 
-    if (m_imageSize.isValid()) {
+    if (m_movie) {
+        speed = m_movie->speed();
+        scaledSize = m_movie->scaledSize();
+        m_movie->device()->deleteLater();
+    }
+
+    QIODevice *device = nullptr;
+    if (!m_fileName.isEmpty()) {
+        device = new QFile(m_fileName, this);
+    } else {
+        device = new QBuffer(&m_buffer, this);
+    }
+    device->open(QIODevice::ReadOnly);
+    m_movie.reset(new QMovie(device));
+
+    if (speed > 0 && speed <= 1000) {
+        m_movie->setSpeed(speed);
+    }
+    if (scaledSize.isValid()) {
+        m_movie->setScaledSize(scaledSize);
+    } else if (m_imageSize.isValid()) {
         m_movie->setScaledSize(m_imageSize);
     }
 
-    connect(m_movie.get(), &QMovie::error, this, [this]() { qWarning() << "ERROR" << m_movie->lastErrorString(); });
+    // Completely arbitrary
+    const bool bigImage = m_scaledSize.width()/1000 * m_scaledSize.height() / 1000 > 16;
+    m_movie->setCacheMode(bigImage ? QMovie::CacheNone : QMovie::CacheAll);
+
+    QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
+
+    connect(m_movie.get(), &QMovie::error, this, [this]() {
+            qWarning() << "QMovie error" << m_movie->lastErrorString();
+            m_needReset = true;
+        });
+
+#ifdef DEBUG_MNG
+    m_timer.restart();
+    qDebug() << " - Next delay" << m_movie->nextFrameDelay();
+#endif
 
     connect(m_movie.get(), &QMovie::frameChanged, this, [this](int frameNum) {
+#ifdef DEBUG_MNG
+        qDebug() << " - Now at frame" << frameNum << m_timer.restart() << "elapsed since last";
+        qDebug() << " - Next delay" << m_movie->nextFrameDelay();
+#endif
         update();
+
+        // Basically just the mng reader not providing a delay, we cap at 60fps
+        const int nextFrameDelay = m_movie->nextFrameDelay();
+        if (nextFrameDelay < 16) {
+            m_movie->setPaused(true);
+            QTimer::singleShot(qMin(16 - nextFrameDelay, 16), m_movie.data(), &QMovie::start);
+        }
+
+        if (!m_movie->currentPixmap().isNull()) {
+            m_decodeSuccess = true;
+        }
 
         if (!m_brokenFormat) {
             return;
@@ -139,25 +190,22 @@ void Viewer::resetMovie()
             QMetaObject::invokeMethod(this, &Viewer::onMovieFinished, Qt::QueuedConnection);
             return;
         }
-        if (frameNum > 0) {
-            m_failed = false;
-        }
     });
 
-    connect(m_movie.get(), &QMovie::finished, this, &Viewer::onMovieFinished);
+    connect(m_movie.get(), &QMovie::finished, this, &Viewer::onMovieFinished, Qt::QueuedConnection);
 }
 
 void Viewer::onMovieFinished()
 {
-    if (m_failed) {
-        qWarning() << "Finished but failed, not reseting";
+    if (!m_decodeSuccess) {
+        qWarning() << "Animation decode failed";
         return;
     }
-    if (m_brokenFormat) {
-        m_failed = true;
-        resetMovie();
+    if (m_needReset) {
+        QMetaObject::invokeMethod(this, &Viewer::resetMovie);
+    } else {
+        m_movie->jumpToFrame(0);
     }
-    QMetaObject::invokeMethod(m_movie.get(), &QMovie::start);
 }
 
 void Viewer::updateSize(QSize newSize, bool initial)
@@ -249,6 +297,10 @@ void Viewer::paintEvent(QPaintEvent *event)
         imageRect.moveCenter(rect.center());
 
         image = m_scaled;
+    }
+    if (image.isNull()) {
+        qWarning() << "Decode failure";
+        return;
     }
     p.drawImage(imageRect.topLeft(), image);
 
@@ -342,12 +394,17 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     case Qt::Key_8: updateSize(fullSize  * 0.8); return;
     case Qt::Key_9: updateSize(fullSize  * 0.9); return;
     case Qt::Key_0: updateSize(m_imageSize); return;
-    case Qt::Key_Backspace:
+    case Qt::Key_Backspace: {
         if (m_movie) {
             m_movie->setSpeed(100);
         }
         updateSize(m_imageSize);
+        const QRect screenGeo = screen()->availableGeometry();
+        QRect geo = geometry();
+        geo.moveCenter(screenGeo.center());
+        setGeometry(geo);
         return;
+    }
     case Qt::Key_Space:
         if (!m_movie) {
             return;
@@ -405,7 +462,7 @@ void Viewer::keyPressEvent(QKeyEvent *event)
             return;
         }
         m_movie->setPaused(true);
-        if (m_movie->currentFrameNumber() >= m_movie->frameCount()) {
+        if (m_movie->frameCount() && m_movie->currentFrameNumber() >= m_movie->frameCount()) {
             m_movie->jumpToFrame(0);
         } else {
             m_movie->jumpToFrame(m_movie->currentFrameNumber() + 1);
