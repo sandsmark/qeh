@@ -29,6 +29,8 @@ Keyboard shortcuts
  - S: Decrease animation speed with 10%
  - D: Pause and step forward in animation
  - A: Pause and step backward in animation
+ - E: Equalize image
+ - N: Normalize image
  - Backspace: Reset playback speed, reset zoom
 
 

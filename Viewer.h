@@ -24,6 +24,12 @@ public:
     }
     QImageReader::ImageReaderError error() const { return m_error; }
 
+    enum Effect {
+        None,
+        Normalize,
+        Equalize
+    };
+
 private slots:
     void setAspectRatio();
     void resetMovie();
@@ -43,6 +49,8 @@ protected:
 private:
     void updateSize(QSize newSize, bool initial = false);
     void ensureVisible();
+    void updateScaled();
+
     QImage m_image;
     QImage m_scaled;
     QSize m_imageSize;
@@ -60,5 +68,7 @@ private:
 
     bool m_showInfo = false;
     QString m_format;
+
+    Effect m_effect = None;
 };
 

@@ -1,4 +1,7 @@
 #include "Viewer.h"
+
+#include "imgeffects.h"
+
 #include <QKeyEvent>
 #include <QPainter>
 #include <QScreen>
@@ -9,6 +12,7 @@
 #include <QBuffer>
 #include <QMetaEnum>
 #include <QColorSpace>
+#include <QElapsedTimer>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -235,6 +239,11 @@ void Viewer::paintEvent(QPaintEvent *event)
         } else {
             image =  m_movie->currentImage();
         }
+        if (m_effect == Equalize) {
+            equalize(image);
+        } else if (m_effect == Normalize) {
+            normalize(image);
+        }
     } else {
         imageRect = m_scaled.rect();
         imageRect.moveCenter(rect.center());
@@ -372,6 +381,25 @@ void Viewer::keyPressEvent(QKeyEvent *event)
             m_movie->jumpToFrame(m_movie->currentFrameNumber() - 1);
         }
         return;
+    case Qt::Key_N:
+        if (m_effect == Normalize) {
+            m_effect = None;
+        } else {
+            m_effect = Normalize;
+        }
+        updateScaled();
+        update();
+        break;
+    case Qt::Key_E:
+        if (m_effect == Equalize) {
+            m_effect = None;
+        } else {
+            m_effect = Equalize;
+        }
+        updateScaled();
+        update();
+        break;
+
     case Qt::Key_D:
         if (!m_movie) {
             return;
@@ -442,6 +470,34 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     QRasterWindow::keyPressEvent(event);
 }
 
+void Viewer::updateScaled()
+{
+    if (m_movie) {
+        return;
+    }
+    QElapsedTimer t; t.start();
+    const Qt::TransformationMode mode = Qt::SmoothTransformation;
+    const bool scalingUp = m_image.width() < width();
+
+    m_scaled = m_image;
+    if (scalingUp) {
+        if (m_effect == Equalize) {
+            equalize(m_scaled);
+        } else if (m_effect == Normalize) {
+            normalize(m_scaled);
+        }
+    }
+    m_scaled = m_scaled.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (!scalingUp) {
+        if (m_effect == Equalize) {
+            equalize(m_scaled);
+        } else if (m_effect == Normalize) {
+            normalize(m_scaled);
+        }
+    }
+    qDebug() << "Effect applied in" << t.elapsed() << "ms";
+}
+
 void Viewer::resizeEvent(QResizeEvent *event)
 {
     m_scaledSize = m_imageSize.scaled(size(), Qt::KeepAspectRatio);
@@ -450,8 +506,7 @@ void Viewer::resizeEvent(QResizeEvent *event)
             m_movie->setScaledSize(m_scaledSize);
         }
     } else {
-        const Qt::TransformationMode mode = Qt::SmoothTransformation;
-        m_scaled = m_image.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        updateScaled();
     }
     QMetaObject::invokeMethod(this, &Viewer::setAspectRatio, Qt::QueuedConnection);
     QRasterWindow::resizeEvent(event);
