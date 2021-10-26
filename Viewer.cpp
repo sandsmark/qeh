@@ -475,7 +475,9 @@ void Viewer::updateScaled()
     if (m_movie) {
         return;
     }
+#ifdef DEBUG_LOAD_TIME
     QElapsedTimer t; t.start();
+#endif
     const Qt::TransformationMode mode = Qt::SmoothTransformation;
     const bool scalingUp = m_image.width() < width();
 
@@ -495,7 +497,9 @@ void Viewer::updateScaled()
             normalize(m_scaled);
         }
     }
+#ifdef DEBUG_LOAD_TIME
     qDebug() << "Effect applied in" << t.elapsed() << "ms";
+#endif
 }
 
 void Viewer::resizeEvent(QResizeEvent *event)
