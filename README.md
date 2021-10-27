@@ -32,6 +32,7 @@ Keyboard shortcuts
  - E: Equalize image
  - N: Normalize image
  - Backspace: Reset playback speed, reset zoom
+ - ?: Show/hide keyboard shortcuts
 
 
 Plugins

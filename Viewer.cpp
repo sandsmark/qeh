@@ -14,6 +14,7 @@
 #include <QColorSpace>
 #include <QElapsedTimer>
 #include <QTimer>
+#include <QString>
 
 #ifdef DEBUG_LOAD_TIME
 #include <QElapsedTimer>
@@ -23,6 +24,27 @@ extern "C" {
 #include <xcb/xcb_icccm.h>
 #include <unistd.h>
 }
+
+static const QString s_helpText = QStringLiteral(
+        "Equals/Plus/Up: Zooms in\n"
+        "Minus/Down: Zooms out\n"
+        "Right: Move right\n"
+        "Left: Move left\n"
+        "Escape/Q: Quit\n"
+        "F: Maximize\n"
+        "I: Show/hide image info\n"
+        "1-0: Zoom 10-100%\n"
+        "Space: Toggle animation\n"
+        "W: Speed up animation\n"
+        "S: Slow down animation\n"
+        "D: Step animation forward\n"
+        "A: Step animation backward\n"
+        "E: Equalize\n"
+        "N: Normalize\n"
+        "Backspace: Reset\n"
+        "?: Show/hide this message"
+    );
+
 
 Viewer::Viewer()
 {
@@ -311,56 +333,62 @@ void Viewer::paintEvent(QPaintEvent *event)
     for (const QRect &r : background) {
         p.fillRect(r, Qt::black);
     }
-    if (m_showInfo) {
+
+    QString text;
+    if (m_showHelp) {
+        text = s_helpText;
+    } else if (m_showInfo) {
         p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-        QString infoText;
-        infoText += enumToString(image.format());
-        infoText += "\nSize: " + QString::asprintf("%dx%d", m_imageSize.width(), m_imageSize.height());
-        infoText += "\nFormat: " + m_format;
+        text += enumToString(image.format());
+        text += "\nSize: " + QString::asprintf("%dx%d", m_imageSize.width(), m_imageSize.height());
+        text += "\nFormat: " + m_format;
 
         QColorSpace colors = image.colorSpace();
         if (colors.isValid() || image.colorCount()) {
-            infoText += "\nColors:";
+            text += "\nColors:";
             if (colors.gamma()) {
-                infoText += "\n  Gamma: " + QString::number(colors.gamma());
+                text += "\n  Gamma: " + QString::number(colors.gamma());
             }
             if (colors.isValid()) {
-                infoText += "\n  Primaries: " + enumToString(colors.primaries());
-                infoText += "\n  Transfer function: " + enumToString(colors.transferFunction());
+                text += "\n  Primaries: " + enumToString(colors.primaries());
+                text += "\n  Transfer function: " + enumToString(colors.transferFunction());
             }
             if (image.colorCount()) {
-                infoText += "\n  Color count: " + QString::number(image.colorCount());
+                text += "\n  Color count: " + QString::number(image.colorCount());
             }
         }
 
         if (!image.textKeys().isEmpty()) {
-            infoText += "\nMetadata:";
+            text += "\nMetadata:";
             for (const QString &key : image.textKeys()) {
                 QString text = image.text(key).simplified();
                 //text.remove("\n");
                 if (text.length() > 25) {
                     text = text.mid(0, 22) + "...";
                 }
-                infoText += "\n - " + key + ": " + text;
+                text += "\n - " + key + ": " + text;
             }
         }
 
         if (m_movie) {
-            infoText += "\nFrame: " + QString::number(m_movie->currentFrameNumber());
+            text += "\nFrame: " + QString::number(m_movie->currentFrameNumber());
             if (m_movie->frameCount()) {
-                infoText += "/" + QString::number(m_movie->frameCount());
+                text += "/" + QString::number(m_movie->frameCount());
             }
             if (m_movie->speed() != 100) {
-                infoText += "\nSpeed: " + QString::number(m_movie->speed()) + "%";
+                text += "\nSpeed: " + QString::number(m_movie->speed()) + "%";
             }
-            infoText += "\n" + enumToString(m_movie->state());
+            text += "\n" + enumToString(m_movie->state());
         }
-        QRect textRect = p.boundingRect(rect, Qt::AlignLeft | Qt::AlignTop, infoText);
+    }
+    if (!text.isEmpty()) {
+        p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        QRect textRect = p.boundingRect(rect, Qt::AlignLeft | Qt::AlignTop, text);
         textRect += QMargins(2, 2, 2, 2);
         textRect.moveTo(0, 0);
         p.fillRect(textRect, QColor(0, 0, 0, 128));
         p.setPen(Qt::white);
-        p.drawText(textRect, infoText);
+        p.drawText(textRect, text);
     }
 }
 
@@ -519,6 +547,10 @@ void Viewer::keyPressEvent(QKeyEvent *event)
     }
     case Qt::Key_I:
         m_showInfo = !m_showInfo;
+        update();
+        break;
+    case Qt::Key_Question:
+        m_showHelp = !m_showHelp;
         update();
         break;
     default:

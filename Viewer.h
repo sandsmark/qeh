@@ -74,6 +74,8 @@ private:
 
     Effect m_effect = None;
 
+    bool m_showHelp = false;
+
 #ifdef DEBUG_MNG
     QElapsedTimer m_timer;
 #endif
