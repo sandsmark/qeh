@@ -409,8 +409,8 @@ void Viewer::wheelEvent(QWheelEvent *event)
 
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
-    QSize fullSize = m_imageSize.scaled(screen()->availableSize(), Qt::KeepAspectRatio);
     const QSize screenSize = screen()->availableSize();
+    QSize fullSize = m_imageSize.scaled(screenSize, Qt::KeepAspectRatio);
     switch(event->key()) {
     case Qt::Key_1: updateSize(fullSize  * 0.1); return;
     case Qt::Key_2: updateSize(fullSize  * 0.2); return;
